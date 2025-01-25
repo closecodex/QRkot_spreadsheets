@@ -1,3 +1,4 @@
+from http import HTTPStatus
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +17,6 @@ from app.api.validators import (
     validate_full_amount,
     validate_project_for_deletion,
 )
-from app.services.investment import process_investment
 from app.crud.donation import donation_crud
 
 router = APIRouter()
@@ -28,17 +28,11 @@ async def create_charity_project(
     session: AsyncSession = Depends(get_async_session),
     superuser=Depends(current_superuser),
 ):
-    await check_charity_project_name_is_available(
-        name=project_in.name, session=session
+    await check_charity_project_name_is_available(project_in.name, session)
+    open_donations = await donation_crud.get_open(session)
+    return await charity_project_crud.create_with_investments(
+        project_in, open_donations, session
     )
-
-    new_project = await charity_project_crud.create(project_in, session)
-    session.add_all(process_investment(
-        new_project, await donation_crud.get_open(session)
-    ))
-    await session.commit()
-    await session.refresh(new_project)
-    return new_project
 
 
 @router.get('/', response_model=list[CharityProjectDB])
@@ -57,7 +51,10 @@ async def update_charity_project(
 ):
     db_project = await session.get(CharityProject, project_id)
     if not db_project:
-        raise HTTPException(status_code=404, detail='Project not found')
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Project not found'
+        )
 
     forbidden_updates = {
         'invested_amount', 'create_date', 'close_date', 'fully_invested'
@@ -65,7 +62,8 @@ async def update_charity_project(
     update_data = project_in.dict(exclude_unset=True)
     if any(field in forbidden_updates for field in update_data):
         raise HTTPException(
-            status_code=422, detail='Attempt to update restricted fields'
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            detail='Attempt to update restricted fields'
         )
     validate_not_fully_invested(db_project)
     if 'full_amount' in update_data:
@@ -76,12 +74,11 @@ async def update_charity_project(
         await check_charity_project_name_is_available(
             name=project_in.name, session=session, project_id=project_id
         )
-    updated_obj = await charity_project_crud.update(
+    return await charity_project_crud.update(
         db_obj=db_project,
         obj_in=project_in,
         session=session
     )
-    return updated_obj
 
 
 @router.delete('/{project_id}', response_model=CharityProjectDB)
@@ -92,6 +89,7 @@ async def delete_charity_project(
 ):
     project = await charity_project_crud.get(project_id, session)
     validate_project_for_deletion(project)
-    await session.delete(project)
-    await session.commit()
-    return project
+    deleted_project = await charity_project_crud.delete_charity_project(
+        project, session
+    )
+    return deleted_project

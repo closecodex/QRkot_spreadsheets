@@ -5,7 +5,13 @@ from aiogoogle import Aiogoogle
 from app.core.config import settings
 from app.models import charity_project
 
-FORMAT = "%Y/%m/%d %H:%M:%S"
+FORMAT = '%Y/%m/%d %H:%M:%S'
+
+DEFAULT_ROW_COUNT = 100
+DEFAULT_COLUMN_COUNT = 11
+SHEET_ID = 0
+SHEET_TITLE = 'Завершенные проекты'
+SPREADSHEET_LOCALE = 'ru_RU'
 
 
 async def spreadsheets_create(wrapper_services: Aiogoogle) -> str:
@@ -13,18 +19,24 @@ async def spreadsheets_create(wrapper_services: Aiogoogle) -> str:
     service = await wrapper_services.discover('sheets', 'v4')
     spreadsheet_body = {
         'properties': {'title': f'Отчёт на {now_date_time}',
-                       'locale': 'ru_RU'},
-        'sheets': [{'properties': {'sheetType': 'GRID',
-                                   'sheetId': 0,
-                                   'title': 'Завершенные проекты',
-                                   'gridProperties': {'rowCount': 100,
-                                                      'columnCount': 11}}}]
+                       'locale': SPREADSHEET_LOCALE},
+        'sheets': [
+            {
+                'properties': {
+                    'sheetType': 'GRID',
+                    'sheetId': SHEET_ID,
+                    'title': SHEET_TITLE,
+                    'gridProperties': {
+                        'rowCount': DEFAULT_ROW_COUNT,
+                        'columnCount': DEFAULT_COLUMN_COUNT,
+                    },
+                },
+            },
+        ],
     }
-    response = await wrapper_services.as_service_account(
+    return (await wrapper_services.as_service_account(
         service.spreadsheets.create(json=spreadsheet_body)
-    )
-    spreadsheetid = response['spreadsheetId']
-    return spreadsheetid
+    ))['spreadsheetId']
 
 
 async def set_user_permissions(

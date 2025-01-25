@@ -1,12 +1,18 @@
 from sqlalchemy import Column, Integer, String
+
 from .base import InvestmentBaseModel
+
+NAME_MAX_LENGTH = 100
+DEFAULT_INVESTED_AMOUNT = 0
 
 
 class CharityProject(InvestmentBaseModel):
 
-    name = Column(String(100), unique=True, index=True, nullable=False)
+    name = Column(
+        String(NAME_MAX_LENGTH), unique=True, index=True, nullable=False
+    )
     description = Column(String, nullable=False)
-    invested_amount = Column(Integer, default=0)
+    invested_amount = Column(Integer, default=DEFAULT_INVESTED_AMOUNT)
 
     def __repr__(self):
         """Отладочное представление модели CharityProject."""

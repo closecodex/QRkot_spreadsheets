@@ -11,7 +11,9 @@ def process_investment(
     Распределяет инвестиции из источников (sources) в цель (target).
     """
     changed = []
+    target.invested_amount = target.invested_amount or 0
     for source in sources:
+        source.invested_amount = source.invested_amount or 0
         if target.fully_invested:
             break
         invest_amount = min(

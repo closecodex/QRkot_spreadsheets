@@ -116,9 +116,12 @@ def validate_no_invested_amount(project: CharityProject):
 
 def validate_project_for_deletion(project: CharityProject):
     if not project:
-        raise HTTPException(status_code=404, detail='Project not found')
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Project not found'
+        )
     if project.invested_amount > 0 or project.fully_invested:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail='Невозможно удалить инвестированный или закрытый проект'
         )
