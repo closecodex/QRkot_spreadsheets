@@ -1,0 +1,43 @@
+from sqlalchemy import extract
+from typing import Optional
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from app.models.charity_project import CharityProject
+from app.schemas.charity_project import (
+    CharityProjectCreate, CharityProjectUpdate
+)
+from .base import CRUDBase
+
+
+class CharityProjectCRUD(
+    CRUDBase[CharityProject, CharityProjectCreate, CharityProjectUpdate]
+):
+    """CRUD-операции для CharityProject."""
+
+    async def get_charity_project_by_name(
+        self, name: str, session: AsyncSession
+    ) -> Optional[CharityProject]:
+        return (
+            await session.execute(
+                select(self.model).where(self.model.name == name)
+            )
+        ).scalars().first()
+
+    async def get_projects_by_completion_rate(
+        self, session: AsyncSession
+    ) -> list[CharityProject]:
+        """Закрытые проекты, отсортированные по времени сбора средств."""
+        projects = await session.execute(
+            select(CharityProject).where(
+                CharityProject.fully_invested.is_(True)
+            ).order_by(
+                extract('day', CharityProject.close_date) - extract(
+                    'day', CharityProject.create_date
+                )
+            )
+        )
+        return projects.scalars().all()
+
+
+charity_project_crud = CharityProjectCRUD(CharityProject)
